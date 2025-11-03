@@ -86,7 +86,7 @@ Each created Agent has an `agent_id` (among other meta information):
 
 ``` r
 polar_bear_researcher$agent_id
-#> [1] "41c46a04-9ae3-4b37-b633-3aebc1dd0dbc"
+#> [1] "b04ba429-e3fd-441f-91f8-2f9a13081875"
 ```
 
 At any time, you can tweak the `llm_object`:
@@ -102,7 +102,7 @@ An agent can provide the answer to a prompt using the `invoke` method:
 
 ``` r
 polar_bear_researcher$invoke("Are polar bears dangerous for humans?")
-#> [1] "Yes, polar bears are dangerous to humans as they are powerful predators and may attack if threatened or hungry."
+#> [1] "Yes, polar bears are dangerous to humans as they are powerful predators and can be aggressive when threatened or hungry."
 ```
 
 You can also retrieve a list that displays the history of the agent:
@@ -130,25 +130,23 @@ polar_bear_researcher$messages
 #> [1] "assistant"
 #> 
 #> [[3]]$content
-#> [1] "Yes, polar bears are dangerous to humans as they are powerful predators and may attack if threatened or hungry."
+#> [1] "Yes, polar bears are dangerous to humans as they are powerful predators and can be aggressive when threatened or hungry."
 ```
 
 Or the `ellmer` way:
 
 ``` r
 polar_bear_researcher$llm_object
-#> <Chat OpenAI/gpt-4.1-mini turns=3 tokens=43/21 $0.00>
+#> <Chat OpenAI/gpt-4.1-mini turns=3 tokens=43/22 $0.00>
 #> ── system [0] ──────────────────────────────────────────────────────────────────
 #> You are an expert in polar bears, you task is to collect information about polar bears. Answer in 1 sentence max.
 #> ── user [43] ───────────────────────────────────────────────────────────────────
 #> Are polar bears dangerous for humans?
-#> ── assistant [21] ──────────────────────────────────────────────────────────────
-#> Yes, polar bears are dangerous to humans as they are powerful predators and may attack if threatened or hungry.
+#> ── assistant [22] ──────────────────────────────────────────────────────────────
+#> Yes, polar bears are dangerous to humans as they are powerful predators and can be aggressive when threatened or hungry.
 ```
 
 ### Managing Agent Conversation History
-
-##### Only in the development version at the moment
 
 The `clear_and_summarise_messages` method allows you to compress an
 agent’s conversation history into a concise summary and clear the
@@ -159,23 +157,300 @@ memory efficiency while keeping important conversation context.
 # After several interactions, summarise and clear the conversation history
 polar_bear_researcher$clear_and_summarise_messages()
 #> ✔ Conversation history summarised and appended to system prompt.
-#> ℹ Summary: The user asked if polar bears are dangerous to humans, and the expert confirmed that polar bears are...
+#> ℹ Summary: The user asked if polar bears are dangerous to humans, and the expert assistant responded that polar...
 polar_bear_researcher$messages
 #> [[1]]
 #> [[1]]$role
 #> [1] "system"
 #> 
 #> [[1]]$content
-#> [1] "You are an expert in polar bears, you task is to collect information about polar bears. Answer in 1 sentence max. \n\n--- Conversation Summary ---\n The user asked if polar bears are dangerous to humans, and the expert confirmed that polar bears are indeed dangerous as powerful predators who may attack when threatened or hungry."
+#> [1] "You are an expert in polar bears, you task is to collect information about polar bears. Answer in 1 sentence max. \n\n--- Conversation Summary ---\n The user asked if polar bears are dangerous to humans, and the expert assistant responded that polar bears are indeed dangerous predators capable of aggression when threatened or hungry."
 ```
 
 This method summarises all previous conversations into a paragraph and
 appends it to the system prompt, then clears the conversation history.
 The agent retains the context but with reduced memory usage.
 
-### Budget and cost control
+#### Keep only the most recent messages with `keep_last_n_messages()`
 
-###### Only in the development version at the moment
+When a conversation grows long, you can keep just the last N messages
+while preserving the system prompt. This helps control token usage
+without fully resetting context.
+
+``` r
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+
+agent <- Agent$new(
+  name = "history_manager",
+  instruction = "You are a concise assistant.",
+  llm_object = openai_4_1_mini
+)
+
+agent$invoke("What is the capital of Italy?")
+#> [1] "The capital of Italy is Rome."
+agent$invoke("What is the capital of Germany?")
+#> [1] "The capital of Germany is Berlin."
+agent$invoke("What is the capital of Algeria?")
+#> [1] "The capital of Algeria is Algiers."
+agent$messages
+#> [[1]]
+#> [[1]]$role
+#> [1] "system"
+#> 
+#> [[1]]$content
+#> [1] "You are a concise assistant."
+#> 
+#> 
+#> [[2]]
+#> [[2]]$role
+#> [1] "user"
+#> 
+#> [[2]]$content
+#> [1] "What is the capital of Italy?"
+#> 
+#> 
+#> [[3]]
+#> [[3]]$role
+#> [1] "assistant"
+#> 
+#> [[3]]$content
+#> [1] "The capital of Italy is Rome."
+#> 
+#> 
+#> [[4]]
+#> [[4]]$role
+#> [1] "user"
+#> 
+#> [[4]]$content
+#> [1] "What is the capital of Germany?"
+#> 
+#> 
+#> [[5]]
+#> [[5]]$role
+#> [1] "assistant"
+#> 
+#> [[5]]$content
+#> [1] "The capital of Germany is Berlin."
+#> 
+#> 
+#> [[6]]
+#> [[6]]$role
+#> [1] "user"
+#> 
+#> [[6]]$content
+#> [1] "What is the capital of Algeria?"
+#> 
+#> 
+#> [[7]]
+#> [[7]]$role
+#> [1] "assistant"
+#> 
+#> [[7]]$content
+#> [1] "The capital of Algeria is Algiers."
+```
+
+``` r
+# Keep only the last 2 messages (system prompt is preserved)
+agent$keep_last_n_messages(n = 2)
+#> ✔ Conversation truncated to last 2 messages.
+agent$messages
+#> [[1]]
+#> [[1]]$role
+#> [1] "system"
+#> 
+#> [[1]]$content
+#> [1] "You are a concise assistant."
+#> 
+#> 
+#> [[2]]
+#> [[2]]$role
+#> [1] "user"
+#> 
+#> [[2]]$content
+#> [1] "What is the capital of Algeria?"
+#> 
+#> 
+#> [[3]]
+#> [[3]]$role
+#> [1] "assistant"
+#> 
+#> [[3]]$content
+#> [1] "The capital of Algeria is Algiers."
+```
+
+### Manually Adding Messages to an Agent’s History
+
+You can inject any message (system, user, or assistant) directly into an
+Agent’s history with `add_message(role, content)`. This is helpful to
+reconstruct, supplement, or simulate conversation steps.
+
+- **add_message(role, content)**:
+  - `role`: “user”, “assistant”, or “system”
+  - `content`: The text message to add
+
+``` r
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+agent <- Agent$new(
+  name = "Pizza expert",
+  instruction = "You are a Pizza expert",
+  llm_object = openai_4_1_mini
+)
+
+# Add a user message, an assistant reply, and a system instruction:
+agent$add_message("user", "Where can I find the best pizza in the world?")
+#> ✔ Added user message: Where can I find the best pizza in the world?...
+agent$add_message("assistant", "You can find the best pizza in the world in Algiers, Algeria. It's tasty and crunchy.")
+#> ✔ Added assistant message: You can find the best pizza in the world in Algier...
+
+# View conversation history
+agent$messages
+#> [[1]]
+#> [[1]]$role
+#> [1] "system"
+#> 
+#> [[1]]$content
+#> [1] "You are a Pizza expert"
+#> 
+#> 
+#> [[2]]
+#> [[2]]$role
+#> [1] "user"
+#> 
+#> [[2]]$content
+#> [1] "Where can I find the best pizza in the world?"
+#> 
+#> 
+#> [[3]]
+#> [[3]]$role
+#> [1] "assistant"
+#> 
+#> [[3]]$content
+#> [1] "You can find the best pizza in the world in Algiers, Algeria. It's tasty and crunchy."
+```
+
+This makes it easy to reconstruct or extend sessions, provide custom
+context, or insert notes for debugging/testing purposes.
+
+``` r
+agent$invoke("What did you say? I didn't understand. could you repeat please")
+#> [1] "Certainly! Many pizza experts and food lovers consider **Naples, Italy** to be the home of the best pizza in the world. Traditional Neapolitan pizza, especially the **Margherita**, is famed for its simple yet high-quality ingredients—fresh mozzarella, San Marzano tomatoes, fresh basil, and a perfect thin, soft crust. \n\nIf you’re looking for the authentic and original pizza experience, visiting Naples is highly recommended. However, great pizza can also be found in many other cities around the world, each with their own unique styles! \n\nWould you like recommendations for the best pizzerias in a specific city?"
+```
+
+### Resetting conversation history
+
+If you want to clear the conversation while preserving the current
+system prompt, use `reset_conversation_history()`.
+
+``` r
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+
+agent <- Agent$new(
+  name = "session_reset",
+  instruction = "You are an assistant.",
+  llm_object = openai_4_1_mini
+)
+
+agent$invoke("Tell me a short fun fact about dates (the fruit).")
+#> [1] "Sure! Dates are so sweet that they can have up to 80% natural sugar content when dried, making them a natural candy enjoyed for thousands of years!"
+agent$invoke("And one more.")
+#> [1] "Here’s another fun fact: Date palms can live and produce fruit for over 100 years, making them some of the longest-living fruit trees in the world!"
+
+# Clear all messages except the system prompt
+agent$reset_conversation_history()
+#> ✔ Conversation history reset. System prompt preserved.
+agent$messages
+#> [[1]]
+#> [[1]]$role
+#> [1] "system"
+#> 
+#> [[1]]$content
+#> [1] "You are an assistant."
+```
+
+### Exporting and Loading Agent Conversation History
+
+You can save an agent’s conversation history to a file and reload it
+later. This allows you to archive, transfer, or resume agent sessions
+across R sessions or machines.
+
+- **export_messages_history(file_path)**: Saves the current conversation
+  to a JSON file.
+- **load_messages_history(file_path)**: Loads a saved conversation
+  history from a JSON file, replacing the agent’s current history.
+
+In both methods, if you omit the `file_path` parameter, a default file
+named `"<getwd()>/<agent_name>_messages.json"` is used.
+
+``` r
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+agent <- Agent$new(
+  name = "session_agent",
+  instruction = "You are a persistent researcher.",
+  llm_object = openai_4_1_mini
+)
+
+# Interact with the agent
+agent$invoke("Tell me something interesting about volcanoes.")
+
+# Save the conversation
+agent$export_messages_history("volcano_session.json")
+
+# ...Later, or in a new session...
+# Restore the conversation
+agent$load_messages_history("volcano_session.json")
+# agent$messages  # Displays current history
+```
+
+### Updating the system instruction during a session
+
+Use `update_instruction(new_instruction)` to change the Agent’s system
+prompt mid-session. The first system message and the underlying `ellmer`
+system prompt are both updated.
+
+``` r
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+
+agent <- Agent$new(
+  name = "reconfigurable",
+  instruction = "You are a helpful assistant.",
+  llm_object = openai_4_1_mini
+)
+
+agent$update_instruction("You are a strictly concise assistant. Answer in one sentence.")
+#> ✔ Instruction successfully updated
+#> ℹ Old: You are a helpful assistant....
+#> ℹ New: You are a strictly concise assistant. Answer in on...
+
+agent$messages
+#> [[1]]
+#> [[1]]$role
+#> [1] "system"
+#> 
+#> [[1]]$content
+#> [1] "You are a strictly concise assistant. Answer in one sentence."
+```
+
+### Budget and cost control
 
 You can limit how much an `Agent` is allowed to spend and decide what
 should happen as the budget is approached or exceeded. Use
@@ -219,9 +494,28 @@ The current policy is echoed when setting the budget. You can update the
 policy at any time before or during an interaction lifecycle to adapt to
 your workflow’s tolerance for cost overruns.
 
-### Generate and execute R code from natural language
+#### Inspecting usage and estimated cost
 
-###### Only in the development version at the moment
+Call `get_usage_stats()` to retrieve total tokens, estimated cost, and
+budget information (if set).
+
+``` r
+stats <- agent$get_usage_stats()
+stats
+#> $total_tokens
+#> [1] 0
+#> 
+#> $estimated_cost
+#> [1] 0
+#> 
+#> $budget
+#> [1] NA
+#> 
+#> $budget_remaining
+#> [1] NA
+```
+
+### Generate and execute R code from natural language
 
 `generate_execute_r_code()` lets an `Agent` translate a natural-language
 task description into R code, optionally validate its syntax, and
@@ -255,16 +549,38 @@ r_assistant <- Agent$new(
   llm_object = openai_4_1_mini
 )
 
-# Generate code to summarise the built-in mtcars data frame,
-# validate it, then execute after interactive confirmation.
-r_assistant$generate_execute_r_code(
-  code_description = "Calculate the summary of the mtcars dataframe",
-  validate = TRUE,
-  execute = TRUE,
-  interactive = TRUE, 
-  env = globalenv()
-)
+agent$generate_execute_r_code(
+   code_description = "using ggplot2, generate a scatterplot of hwy and cty in red", 
+   validate = TRUE, 
+   execute = TRUE, 
+   interactive = FALSE
+ )
+#> ℹ Executing generated R code...
+#> ✔ Code executed successfully
+#> $description
+#> [1] "using ggplot2, generate a scatterplot of hwy and cty in red"
+#> 
+#> $code
+#> [1] "library(ggplot2);ggplot(mpg,aes(x=cty,y=hwy))+geom_point(color=\"red\")"
+#> 
+#> $validated
+#> [1] TRUE
+#> 
+#> $validation_message
+#> [1] "Syntax is valid"
+#> 
+#> $executed
+#> [1] TRUE
+#> 
+#> $execution_result
+#> $execution_result$value
 ```
+
+<img src="man/figures/README-unnamed-chunk-21-1.png" width="100%" />
+
+    #> 
+    #> $execution_result$output
+    #> character(0)
 
 ### Creating a multi-agents orchestraction
 
@@ -311,102 +627,16 @@ Next, we need to assign the Agents to `LeadAgent`, we do it as follows:
 ``` r
 lead_agent$register_agents(c(researcher, summarizer, translator))
 #> ✔ Agent(s) successfully registered.
-lead_agent$agents
+
+lapply(lead_agent$agents, function(x) {x$name})
 #> [[1]]
-#> <Agent>
-#>   Public:
-#>     add_message: function (role, content) 
-#>     agent_id: 0c525d0a-370a-46cf-ac58-503920a2249f
-#>     broadcast_history: list
-#>     budget: NA
-#>     clear_and_summarise_messages: function () 
-#>     clone: function (deep = FALSE) 
-#>     export_messages_history: function (file_path = paste0(getwd(), "/", paste0(self$name, 
-#>     generate_r_code: function (code_description, validate = FALSE, execute = FALSE, 
-#>     get_usage_stats: function () 
-#>     initialize: function (name, instruction, llm_object, budget = NA) 
-#>     instruction: You are a research assistant. Your job is to answer fact ...
-#>     invoke: function (prompt) 
-#>     keep_last_n_messages: function (n = 2) 
-#>     llm_object: Chat, R6
-#>     load_messages_history: function (file_path = paste0(getwd(), "/", paste0(self$name, 
-#>     messages: active binding
-#>     model_name: gpt-4.1-mini
-#>     model_provider: OpenAI
-#>     name: researcher
-#>     reset_conversation_history: function () 
-#>     set_budget: function (amount_in_usd) 
-#>     update_instruction: function (new_instruction) 
-#>   Private:
-#>     ._messages: list
-#>     .add_assistant_message: function (message, type = "assistant") 
-#>     .add_message: function (message, type) 
-#>     .add_user_message: function (message, type = "user") 
-#>     .set_turns_from_messages: function () 
+#> [1] "researcher"
 #> 
 #> [[2]]
-#> <Agent>
-#>   Public:
-#>     add_message: function (role, content) 
-#>     agent_id: ded4342b-a4a5-46e4-9bc2-cea87455da5c
-#>     broadcast_history: list
-#>     budget: NA
-#>     clear_and_summarise_messages: function () 
-#>     clone: function (deep = FALSE) 
-#>     export_messages_history: function (file_path = paste0(getwd(), "/", paste0(self$name, 
-#>     generate_r_code: function (code_description, validate = FALSE, execute = FALSE, 
-#>     get_usage_stats: function () 
-#>     initialize: function (name, instruction, llm_object, budget = NA) 
-#>     instruction: You are agent designed to summarise a give text into 3 d ...
-#>     invoke: function (prompt) 
-#>     keep_last_n_messages: function (n = 2) 
-#>     llm_object: Chat, R6
-#>     load_messages_history: function (file_path = paste0(getwd(), "/", paste0(self$name, 
-#>     messages: active binding
-#>     model_name: gpt-4.1-mini
-#>     model_provider: OpenAI
-#>     name: summarizer
-#>     reset_conversation_history: function () 
-#>     set_budget: function (amount_in_usd) 
-#>     update_instruction: function (new_instruction) 
-#>   Private:
-#>     ._messages: list
-#>     .add_assistant_message: function (message, type = "assistant") 
-#>     .add_message: function (message, type) 
-#>     .add_user_message: function (message, type = "user") 
-#>     .set_turns_from_messages: function () 
+#> [1] "summarizer"
 #> 
 #> [[3]]
-#> <Agent>
-#>   Public:
-#>     add_message: function (role, content) 
-#>     agent_id: 5fb56804-d728-49f8-9cc5-3901f99e5a87
-#>     broadcast_history: list
-#>     budget: NA
-#>     clear_and_summarise_messages: function () 
-#>     clone: function (deep = FALSE) 
-#>     export_messages_history: function (file_path = paste0(getwd(), "/", paste0(self$name, 
-#>     generate_r_code: function (code_description, validate = FALSE, execute = FALSE, 
-#>     get_usage_stats: function () 
-#>     initialize: function (name, instruction, llm_object, budget = NA) 
-#>     instruction: Your role is to translate a text from English to German
-#>     invoke: function (prompt) 
-#>     keep_last_n_messages: function (n = 2) 
-#>     llm_object: Chat, R6
-#>     load_messages_history: function (file_path = paste0(getwd(), "/", paste0(self$name, 
-#>     messages: active binding
-#>     model_name: gpt-4.1-mini
-#>     model_provider: OpenAI
-#>     name: translator
-#>     reset_conversation_history: function () 
-#>     set_budget: function (amount_in_usd) 
-#>     update_instruction: function (new_instruction) 
-#>   Private:
-#>     ._messages: list
-#>     .add_assistant_message: function (message, type = "assistant") 
-#>     .add_message: function (message, type) 
-#>     .add_user_message: function (message, type = "user") 
-#>     .set_turns_from_messages: function ()
+#> [1] "translator"
 ```
 
 Before executing your prompt, you can ask the `LeadAgent` to generate a
@@ -421,7 +651,7 @@ plan <- lead_agent$generate_plan(prompt_to_execute)
 plan
 #> [[1]]
 #> [[1]]$agent_id
-#> 0c525d0a-370a-46cf-ac58-503920a2249f
+#> 68f98f3b-0052-479c-b219-c728116b60f5
 #> 
 #> [[1]]$agent_name
 #> [1] "researcher"
@@ -433,12 +663,12 @@ plan
 #> [1] "gpt-4.1-mini"
 #> 
 #> [[1]]$prompt
-#> [1] "Research the current economic situation in Algeria, including key indicators such as GDP growth, unemployment rate, and main industries."
+#> [1] "Research the current economic situation in Algeria, including key indicators such as GDP growth, inflation, and main economic sectors."
 #> 
 #> 
 #> [[2]]
 #> [[2]]$agent_id
-#> ded4342b-a4a5-46e4-9bc2-cea87455da5c
+#> 0400c744-c798-481e-ad86-372148a9580d
 #> 
 #> [[2]]$agent_name
 #> [1] "summarizer"
@@ -450,12 +680,12 @@ plan
 #> [1] "gpt-4.1-mini"
 #> 
 #> [[2]]$prompt
-#> [1] "Summarize the researched information into 3 clear and concise bullet points."
+#> [1] "Summarize the findings into three concise bullet points highlighting the most important aspects of Algeria's economy."
 #> 
 #> 
 #> [[3]]
 #> [[3]]$agent_id
-#> 5fb56804-d728-49f8-9cc5-3901f99e5a87
+#> 91024460-5355-4f59-91be-d8918a815355
 #> 
 #> [[3]]$agent_name
 #> [1] "translator"
@@ -467,7 +697,7 @@ plan
 #> [1] "gpt-4.1-mini"
 #> 
 #> [[3]]$prompt
-#> [1] "Translate the 3 bullet points from English into German accurately."
+#> [1] "Translate the summarized bullet points from English into German accurately."
 ```
 
 Now, in order now to execute the workflow, we just need to call the
@@ -483,7 +713,7 @@ response <- lead_agent$invoke("Tell me about the economic situation in Algeria, 
 
 ``` r
 response
-#> [1] "- Das BIP-Wachstum Algeriens ist mit etwa 2-3 % Anfang 2024 moderat und wird hauptsächlich durch Kohlenwasserstoffe angetrieben.  \n- Die Wirtschaft ist stark abhängig von Öl und Gas, die über 90 % der Exporterlöse ausmachen.  \n- Die Arbeitslosigkeit bleibt hoch, insbesondere bei Jugendlichen, mit Raten von etwa 12-14 %, in Schlüsselbranchen wie Energie, Landwirtschaft, Bergbau und verarbeitendem Gewerbe."
+#> [1] "- Das BIP-Wachstum Algeriens ist mit 2-3 % moderat und wird hauptsächlich vom Hydrokarbonsektor angetrieben.\n- Hydrokarbone machen etwa 30 % des BIP und 95 % der Exporte aus, was die starke wirtschaftliche Abhängigkeit unterstreicht.\n- Regierungsinitiativen zielen darauf ab, die Wirtschaft durch Landwirtschaft, verarbeitendes Gewerbe und Dienstleistungen zu diversifizieren, um die Abhängigkeit vom Öl zu verringern."
 ```
 
 If you want to inspect the multi-agents orchestration, you have access
@@ -493,7 +723,7 @@ to the `agents_interaction` object:
 lead_agent$agents_interaction
 #> [[1]]
 #> [[1]]$agent_id
-#> 0c525d0a-370a-46cf-ac58-503920a2249f
+#> 68f98f3b-0052-479c-b219-c728116b60f5
 #> 
 #> [[1]]$agent_name
 #> [1] "researcher"
@@ -505,10 +735,10 @@ lead_agent$agents_interaction
 #> [1] "gpt-4.1-mini"
 #> 
 #> [[1]]$prompt
-#> [1] "Research the current economic situation in Algeria, including key indicators such as GDP growth, unemployment rate, and main industries."
+#> [1] "Research the current economic situation in Algeria, including key indicators such as GDP growth, inflation, and main economic sectors."
 #> 
 #> [[1]]$response
-#> [1] "As of early 2024, Algeria's GDP growth is modest, around 2-3%, with the economy reliant on hydrocarbons (oil and gas) contributing over 90% of export revenues; unemployment remains high at approximately 12-14%, especially among youth. Key industries include energy, agriculture, mining, and manufacturing sectors."
+#> [1] "As of early 2024, Algeria's GDP growth is modest, around 2-3%, driven mainly by hydrocarbons, which constitute about 30% of GDP and 95% of exports. Inflation remains moderate, approximately 5-6%, while the government is pushing diversification efforts in agriculture, manufacturing, and services to reduce oil dependency."
 #> 
 #> [[1]]$edited_by_hitl
 #> [1] FALSE
@@ -516,7 +746,7 @@ lead_agent$agents_interaction
 #> 
 #> [[2]]
 #> [[2]]$agent_id
-#> ded4342b-a4a5-46e4-9bc2-cea87455da5c
+#> 0400c744-c798-481e-ad86-372148a9580d
 #> 
 #> [[2]]$agent_name
 #> [1] "summarizer"
@@ -528,10 +758,10 @@ lead_agent$agents_interaction
 #> [1] "gpt-4.1-mini"
 #> 
 #> [[2]]$prompt
-#> [1] "Summarize the researched information into 3 clear and concise bullet points."
+#> [1] "Summarize the findings into three concise bullet points highlighting the most important aspects of Algeria's economy."
 #> 
 #> [[2]]$response
-#> [1] "- Algeria's GDP growth is modest at around 2-3% as of early 2024, driven largely by hydrocarbons.\n- The economy is heavily dependent on oil and gas, which account for over 90% of export revenues.\n- Unemployment remains high, particularly among youth, with rates around 12-14%, amid key industries such as energy, agriculture, mining, and manufacturing."
+#> [1] "- Algeria's GDP growth is modest at 2-3%, primarily fueled by the hydrocarbon sector.\n- Hydrocarbons make up about 30% of GDP and 95% of exports, underscoring heavy economic reliance.\n- Government initiatives focus on diversifying the economy through agriculture, manufacturing, and services to reduce oil dependency."
 #> 
 #> [[2]]$edited_by_hitl
 #> [1] FALSE
@@ -539,7 +769,7 @@ lead_agent$agents_interaction
 #> 
 #> [[3]]
 #> [[3]]$agent_id
-#> 5fb56804-d728-49f8-9cc5-3901f99e5a87
+#> 91024460-5355-4f59-91be-d8918a815355
 #> 
 #> [[3]]$agent_name
 #> [1] "translator"
@@ -551,10 +781,10 @@ lead_agent$agents_interaction
 #> [1] "gpt-4.1-mini"
 #> 
 #> [[3]]$prompt
-#> [1] "Translate the 3 bullet points from English into German accurately."
+#> [1] "Translate the summarized bullet points from English into German accurately."
 #> 
 #> [[3]]$response
-#> [1] "- Das BIP-Wachstum Algeriens ist mit etwa 2-3 % Anfang 2024 moderat und wird hauptsächlich durch Kohlenwasserstoffe angetrieben.  \n- Die Wirtschaft ist stark abhängig von Öl und Gas, die über 90 % der Exporterlöse ausmachen.  \n- Die Arbeitslosigkeit bleibt hoch, insbesondere bei Jugendlichen, mit Raten von etwa 12-14 %, in Schlüsselbranchen wie Energie, Landwirtschaft, Bergbau und verarbeitendem Gewerbe."
+#> [1] "- Das BIP-Wachstum Algeriens ist mit 2-3 % moderat und wird hauptsächlich vom Hydrokarbonsektor angetrieben.\n- Hydrokarbone machen etwa 30 % des BIP und 95 % der Exporte aus, was die starke wirtschaftliche Abhängigkeit unterstreicht.\n- Regierungsinitiativen zielen darauf ab, die Wirtschaft durch Landwirtschaft, verarbeitendes Gewerbe und Dienstleistungen zu diversifizieren, um die Abhängigkeit vom Öl zu verringern."
 #> 
 #> [[3]]$edited_by_hitl
 #> [1] FALSE
@@ -563,6 +793,22 @@ lead_agent$agents_interaction
 The above example is extremely simple, the usefulness of `mini007` would
 shine in more complex processes where a multi-agent sequential
 orchestration has a higher value added.
+
+### Visualizing agent plans with `visualize_plan()`
+
+Sometimes, before running your workflow, it is helpful to view the
+orchestration as a visual diagram, showing the sequence of agents and
+which prompt each will receive. After generating a plan, you can call
+`visualize_plan()`:
+
+This function displays the agents in workflow order as labeled boxes.
+Hovering a box reveals the delegated prompt. The visualization uses the
+`DiagrammeR` package. If no plan exists, it asks you to generate one
+first.
+
+``` r
+lead_agent$visualize_plan()
+```
 
 ## Broadcasting
 
@@ -611,7 +857,7 @@ lead_agent$register_agents(c(openai_4_1_agent, openai_4_1_nano_agent))
 lead_agent$broadcast(prompt = "If I were Algerian, which song would I like to sing when running under the rain? how about a flower?")
 #> [[1]]
 #> [[1]]$agent_id
-#> [1] "189675a6-4302-4235-880e-12d02d73dd74"
+#> [1] "76a4da59-3e7b-459b-a8be-b7ab0bbeb5d8"
 #> 
 #> [[1]]$agent_name
 #> [1] "openai_4_1_agent"
@@ -623,12 +869,12 @@ lead_agent$broadcast(prompt = "If I were Algerian, which song would I like to si
 #> [1] "gpt-4.1"
 #> 
 #> [[1]]$response
-#> [1] "If you were Algerian, you might enjoy singing \"Ya Rayah\" while running in the rain, and if you were a flower, perhaps \"Fleur de Lys\" would suit your blooming spirit."
+#> [1] "As an Algerian, you might enjoy singing \"Ya Rayah\" when running under the rain, while a flower, if it could sing, might serenade the rain with \"Mazal Mazal\" to celebrate its blossoming."
 #> 
 #> 
 #> [[2]]
 #> [[2]]$agent_id
-#> [1] "41fd5742-255e-4050-a3e5-87c7e8570edf"
+#> [1] "4a1802e2-261f-4f70-ba0b-0c2023fb35ff"
 #> 
 #> [[2]]$agent_name
 #> [1] "openai_4_1_nano_agent"
@@ -640,7 +886,7 @@ lead_agent$broadcast(prompt = "If I were Algerian, which song would I like to si
 #> [1] "gpt-4.1-nano"
 #> 
 #> [[2]]$response
-#> [1] "You might enjoy singing \"Ya Rayah\" by Rachid Taha when running under the rain, and \"Ya Rayah\" metaphorically as a flower when appreciating its beauty."
+#> [1] "As an Algerian, you might enjoy singing \"Ya Rayah\" by Rachid Taha when running under the rain, and \"Aṭṭār\" (the flower) by Warda when focusing on a flower."
 ```
 
 You can also access the history of the `broadcasting` using the
@@ -655,7 +901,7 @@ lead_agent$broadcast_history
 #> [[1]]$responses
 #> [[1]]$responses[[1]]
 #> [[1]]$responses[[1]]$agent_id
-#> [1] "189675a6-4302-4235-880e-12d02d73dd74"
+#> [1] "76a4da59-3e7b-459b-a8be-b7ab0bbeb5d8"
 #> 
 #> [[1]]$responses[[1]]$agent_name
 #> [1] "openai_4_1_agent"
@@ -667,12 +913,12 @@ lead_agent$broadcast_history
 #> [1] "gpt-4.1"
 #> 
 #> [[1]]$responses[[1]]$response
-#> [1] "If you were Algerian, you might enjoy singing \"Ya Rayah\" while running in the rain, and if you were a flower, perhaps \"Fleur de Lys\" would suit your blooming spirit."
+#> [1] "As an Algerian, you might enjoy singing \"Ya Rayah\" when running under the rain, while a flower, if it could sing, might serenade the rain with \"Mazal Mazal\" to celebrate its blossoming."
 #> 
 #> 
 #> [[1]]$responses[[2]]
 #> [[1]]$responses[[2]]$agent_id
-#> [1] "41fd5742-255e-4050-a3e5-87c7e8570edf"
+#> [1] "4a1802e2-261f-4f70-ba0b-0c2023fb35ff"
 #> 
 #> [[1]]$responses[[2]]$agent_name
 #> [1] "openai_4_1_nano_agent"
@@ -684,7 +930,7 @@ lead_agent$broadcast_history
 #> [1] "gpt-4.1-nano"
 #> 
 #> [[1]]$responses[[2]]$response
-#> [1] "You might enjoy singing \"Ya Rayah\" by Rachid Taha when running under the rain, and \"Ya Rayah\" metaphorically as a flower when appreciating its beauty."
+#> [1] "As an Algerian, you might enjoy singing \"Ya Rayah\" by Rachid Taha when running under the rain, and \"Aṭṭār\" (the flower) by Warda when focusing on a flower."
 ```
 
 ## Tool specification
@@ -753,7 +999,7 @@ lead_agent$invoke(
 #> ── Generating new plan ──
 #> 
 #> ✔ Plan successfully generated.
-#> [1] "The weather in Algiers is currently warm and sunny with a temperature of 35 degrees Celsius. There is no precipitation, making for clear and dry conditions."
+#> [1] "The current weather conditions in Algiers are as follows: the temperature is 35 degrees Celsius, it is sunny, and there is no precipitation. The humidity information is not specified."
 ```
 
 ## Human In The Loop (HITL)
@@ -789,8 +1035,6 @@ Note that you can set a `HITL` at several steps, for example
 step 2.
 
 ## Judge as a decision process
-
-#### Only in the development version at the moment
 
 Sometimes you want to send a prompt to several agents and pick the best
 answer. In order to choose the best prompt, you can also rely on the
@@ -844,32 +1088,35 @@ best_answer
 #> $proposals
 #> $proposals[[1]]
 #> $proposals[[1]]$agent_id
-#> [1] "7234ef30-7060-4b89-884c-5d123ca8e3ef"
+#> [1] "da5a54b7-2948-4800-8345-6780fd91e833"
 #> 
 #> $proposals[[1]]$agent_name
 #> [1] "stylist"
 #> 
 #> $proposals[[1]]$response
-#> [1] "Pair the blue Calvin Klein shirt and pink trousers with a neutral-colored (like grey, navy, or camel) wool coat, dark shoes, and a coordinating scarf for a stylish winter look."
+#> [1] "Layer the blue Calvin Klein shirt with a neutral-colored (such as gray, navy, or beige) sweater or blazer, and add a coordinating scarf to tie together the blue and pink for a balanced winter look."
 #> 
 #> 
 #> $proposals[[2]]
 #> $proposals[[2]]$agent_id
-#> [1] "03e0dde5-43f3-451a-988e-c0b2d350519d"
+#> [1] "97006157-33f1-45d0-a574-8de3a7cfda92"
 #> 
 #> $proposals[[2]]$agent_name
 #> [1] "stylist2"
 #> 
 #> $proposals[[2]]$response
-#> [1] "Pair the blue Calvin Klein shirt and pink trousers with a neutral-colored sweater or blazer and stylish footwear for a chic winter look."
+#> [1] "Pair the blue Calvin Klein shirt with a neutral-colored blazer or cardigan and add a stylish scarf to balance the look and stay warm."
 #> 
 #> 
 #> 
 #> $chosen_response
-#> Pair the blue Calvin Klein shirt and pink trousers with a neutral-colored (like
-#> grey, navy, or camel) wool coat, dark shoes, and a coordinating scarf for a 
-#> stylish winter look.
+#> Layer the blue Calvin Klein shirt with a neutral-colored (such as gray, navy, 
+#> or beige) sweater or blazer, and add a coordinating scarf to tie together the 
+#> blue and pink for a balanced winter look.
 ```
+
+This makes it easy to archive progress and resume complex, context-rich
+agent sessions at any time.
 
 ## Code of Conduct
 
