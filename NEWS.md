@@ -1,3 +1,21 @@
+# mini007 0.2.2
+
+- Fixing syncing issues between `mini007` and `ellmer`
+
+Adding the following new methods: 
+- `validate_response()`
+- `clone_agent()`
+
+
+
+### Deletion
+
+- Deleting the `visualize_plan()` method as the `DiagrammeR` package has many dependencies. 
+- Deleting the `add_message` method for compatibility with `ellmer` `Turns`
+
+### Dependency
+- Adding `ellmer` as an `import` dependency.
+
 # mini007 0.2.1
 
 - Fixing bug in the `generate_execute_r_code()` method. 
