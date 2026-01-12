@@ -12,6 +12,7 @@
 #' @importFrom cli cli_abort cli_alert_success cli_alert_warning cli_alert_info cli_rule cli_text cli_ul
 #' @importFrom glue glue
 #' @importFrom ellmer type_object type_string type_number
+#' @importFrom rlang parse_expr eval_bare caller_env
 
 #' @export
 Agent <- R6::R6Class(
@@ -760,12 +761,224 @@ Agent <- R6::R6Class(
     },
 
     #' @description
+    #' Register one or more tools with the agent
+    #' @param tools A list of ellmer tool objects or a single tool object
+    #' @examples
+    #' \dontrun{
+    #' openai_4_1_mini <- ellmer::chat(
+    #'   name = "openai/gpt-4.1-mini",
+    #'   api_key = Sys.getenv("OPENAI_API_KEY"),
+    #'   echo = "none"
+    #' )
+    #' agent <- Agent$new(
+    #'   name = "file_assistant",
+    #'   instruction = "You are a file management assistant.",
+    #'   llm_object = openai_4_1_mini
+    #' )
+    #' # Register predefined tools
+    #' agent$register_tools(list(change_directory_tool(), list_files_tool()))
+    #' }
+    register_tools = function(tools) {
+      if (!is.list(tools)) {
+        tools <- list(tools)
+      }
+
+      for (tool in tools) {
+        if (!inherits(tool, "ellmer::ToolDef")) {
+          cli::cli_abort("All tools must be valid ellmer Tool objects")
+        }
+
+        tool_name <- tool@name
+        self$tools[[tool_name]] <- tool
+        cli::cli_alert_success("Registered tool: {tool_name}")
+      }
+
+      private$.update_llm_tools()
+
+      invisible(self)
+    },
+
+    #' @description
+    #' List all registered tools
+    #' @return Character vector of tool names
+    #' @examples
+    #' \dontrun{
+    #' agent$list_tools()
+    #' }
+    list_tools = function() {
+      tool_names <- names(self$tools)
+
+      if (length(tool_names) == 0) {
+        cli::cli_alert_info("No tools registered")
+        return(character(0))
+      }
+
+      tool_names
+    },
+
+    #' @description
+    #' Remove tools from the agent
+    #' @param tool_names Character vector of tool names to remove
+    #' @examples
+    #' \dontrun{
+    #' agent$remove_tools(c("change_directory", "list_files"))
+    #' }
+    remove_tools = function(tool_names) {
+      checkmate::assert_character(tool_names)
+
+      for (tool_name in tool_names) {
+        if (tool_name %in% names(self$tools)) {
+          self$tools[[tool_name]] <- NULL
+          cli::cli_alert_success("Removed tool: {tool_name}")
+        } else {
+          cli::cli_alert_warning("Tool not found: {tool_name}")
+        }
+      }
+
+      private$.update_llm_tools()
+
+      invisible(self)
+    },
+
+    #' @description
+    #' Clear all registered tools
+    #' @examples
+    #' \dontrun{
+    #' agent$clear_tools()
+    #' }
+    clear_tools = function() {
+      tool_count <- length(self$tools)
+      self$tools <- list()
+
+      private$.update_llm_tools()
+
+      cli::cli_alert_success("Cleared {tool_count} tool{?s}")
+      invisible(self)
+    },
+
+    #' @description
+    #' Generate and register a tool from a natural language description.
+    #' This method uses the agent's LLM to create both the R function and the
+    #' ellmer tool definition based on your description, then automatically registers it.
+    #' @param description Character string describing what the tool should do
+    #' @examples
+    #' \dontrun{
+    #' openai_4_1_mini <- ellmer::chat(
+    #'   name = "openai/gpt-4.1-mini",
+    #'   api_key = Sys.getenv("OPENAI_API_KEY"),
+    #'   echo = "none"
+    #' )
+    #' agent <- Agent$new(
+    #'   name = "file_assistant",
+    #'   instruction = "You are a helpful assistant.",
+    #'   llm_object = openai_4_1_mini
+    #' )
+    #' # Generate and register a tool from description
+    #' agent$generate_and_register_tool(
+    #'   description = "Create a tool that saves text content to a file on disk"
+    #' )
+    #' # Now the tool is available to use
+    #' agent$list_tools()
+    #' }
+    generate_and_register_tool = function(description) {
+
+      checkmate::assert_string(description)
+
+      cli::cli_h2("Generating tool from description")
+      cli::cli_alert_info("Description: {description}")
+
+      generation_prompt <- glue::glue(
+        "Generate R code to create an ellmer tool based on this description: <<<<<description>>>>>
+
+          Requirements:
+          1. Create a complete R function that implements the tool's functionality
+          2. Wrap it with ellmer::tool() to create a tool definition
+          3. Use appropriate type specifications: ellmer::type_string(), ellmer::type_number(), ellmer::type_integer(), ellmer::type_boolean(), ellmer::type_enum(), ellmer::type_array(), ellmer::type_object()
+          4. Include clear descriptions for the tool and each parameter
+          Format your response as valid R code that can be evaluated directly. Include ONLY the R code without markdown formatting, explanations, or comments. The code should define the function and create the tool in one block.
+          5. Do not use parameters that do not exist, for example, there is no 'output' parameter in the ellmer::tool function
+          Example format 1:
+          save_file_function <- function(content, filepath) {{
+              writeLines(content, filepath)
+              paste('File saved to', filepath)
+          }}
+          ellmer::tool(
+            save_file_function,
+            name = 'save_file',
+            description = 'Save text content to a file',
+            arguments = list(
+              content = ellmer::type_string(description = 'Text content to save'),
+              filepath = ellmer::type_string(description = 'Path where file should be saved')
+            )
+          )
+
+        Example format 2:
+
+        get_current_time <- function(tz = 'UTC') {
+          format(Sys.time(), tz = tz, usetz = TRUE)
+        }
+
+        get_current_time <- ellmer::tool(
+          get_current_time,
+          name = 'get_current_time',
+          description = 'Returns the current time.',
+          arguments = list(
+           tz = ellmer::type_string(
+           'Time zone to display the current time in. Defaults to `\"UTC\"`.',
+           required = FALSE
+          )
+        )
+        )
+        "
+      , .open = "<<<<<", .close = ">>>>>")
+
+      # Store original system prompt
+      original_system_prompt <- self$llm_object$get_system_prompt()
+      tool_generation_prompt <- paste0(
+        "You are an expert R programmer specializing in creating ellmer tools. ",
+        "Generate clean, functional R code that creates tools for LLM use."
+      )
+
+      self$llm_object$set_system_prompt(value = tool_generation_prompt)
+
+      # Restore original system prompt on exit
+      on.exit(
+        self$llm_object$set_system_prompt(value = original_system_prompt),
+        add = TRUE,
+        after = FALSE
+      )
+
+      # Generate the tool code
+      generated_code <- self$llm_object$chat(generation_prompt)
+
+      cli::cli_h2("The following tool will be registered")
+      cli::cli_code(generated_code)
+
+      # Clean the generated code
+      clean_code <- gsub("```\\{?r\\}?|```", "", generated_code)
+      clean_code <- trimws(clean_code)
+      clean_code <- paste0("{", clean_code, "}")
+
+      expr <- rlang::parse_expr(clean_code)
+
+      tool_result <- rlang::eval_bare(
+        expr,
+        env = rlang::caller_env()
+      )
+
+      self$register_tools(tool_result)
+
+      cli::cli_alert_success("Tool successfully generated and registered")
+      cli::cli_alert_info("Call '<agent-name>$llm_object$get_tools()' to inspect the tools")
+      cli::cli_alert_info("If satisfied, you can copy the tool and put in your corresponding R file")
+    },
+
+    #' @description
     #' Create a copy of the agent with the same instruction and configuration but a new unique ID.
     #' Useful for creating multiple instances of the same agent type.
     #'
     #' @param new_name Optional character string to assign a new name to the cloned agent.
     #' If NULL, the cloned agent retains the original name.
-    #' @return A new Agent instance with the same configuration but a unique ID.
     #' @examples
     #' \dontrun{
     #' openai_4_1_mini <- ellmer::chat(
@@ -823,7 +1036,9 @@ Agent <- R6::R6Class(
     #'@field budget_warned Internal flag indicating whether warn_at notice was emitted.
     budget_warned = NULL,
     #'@field cost The current cost of the agent
-    cost = NULL
+    cost = NULL,
+    #'@field tools A list of registered tools available to the agent
+    tools = list()
 
   ),
 
@@ -905,6 +1120,7 @@ Agent <- R6::R6Class(
 
         contents <- turn@contents
 
+
         content_strings <- vapply(contents, function(ct) {
 
           cls <- class(ct)[[1]]
@@ -934,6 +1150,13 @@ Agent <- R6::R6Class(
 
             call_id <- ct@request@id
             result <- ct@value
+
+            if (is.list(result)) {
+              result <- glue::glue_collapse(
+                glue::glue("{names(result)}: {lapply(result, toString)}"),
+                sep = "     "
+              )
+            }
 
             msg <- sprintf(
               "[tool result id=%s]: %s",
@@ -1138,6 +1361,19 @@ Agent <- R6::R6Class(
           "{self$name} agent has exceeded its budget. ",
           "Cost: {round(current_cost, 4)}, Budget: {round(self$budget, 4)}"
         ))
+      }
+    },
+
+    .update_llm_tools = function() {
+      if (length(self$tools) > 0) {
+        tool_list <- unname(self$tools)
+        suppressMessages({
+          self$llm_object$register_tools(tool_list)
+        })
+      } else {
+        suppressMessages({
+          self$llm_object$set_tools(list())
+        })
       }
     }
   )

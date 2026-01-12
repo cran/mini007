@@ -302,6 +302,72 @@ print(validation)
 }
 
 ## ------------------------------------------------
+## Method `Agent$register_tools`
+## ------------------------------------------------
+
+\dontrun{
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+agent <- Agent$new(
+  name = "file_assistant",
+  instruction = "You are a file management assistant.",
+  llm_object = openai_4_1_mini
+)
+# Register predefined tools
+agent$register_tools(list(change_directory_tool(), list_files_tool()))
+}
+
+## ------------------------------------------------
+## Method `Agent$list_tools`
+## ------------------------------------------------
+
+\dontrun{
+agent$list_tools()
+}
+
+## ------------------------------------------------
+## Method `Agent$remove_tools`
+## ------------------------------------------------
+
+\dontrun{
+agent$remove_tools(c("change_directory", "list_files"))
+}
+
+## ------------------------------------------------
+## Method `Agent$clear_tools`
+## ------------------------------------------------
+
+\dontrun{
+agent$clear_tools()
+}
+
+## ------------------------------------------------
+## Method `Agent$generate_and_register_tool`
+## ------------------------------------------------
+
+\dontrun{
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+agent <- Agent$new(
+  name = "file_assistant",
+  instruction = "You are a helpful assistant.",
+  llm_object = openai_4_1_mini
+)
+# Generate and register a tool from description
+agent$generate_and_register_tool(
+  description = "Create a tool that saves text content to a file on disk"
+)
+# Now the tool is available to use
+agent$list_tools()
+}
+
+## ------------------------------------------------
 ## Method `Agent$clone_agent`
 ## ------------------------------------------------
 
@@ -349,6 +415,8 @@ agent_copy <- agent$clone_agent()
 \item{\code{budget_warned}}{Internal flag indicating whether warn_at notice was emitted.}
 
 \item{\code{cost}}{The current cost of the agent}
+
+\item{\code{tools}}{A list of registered tools available to the agent}
 }
 \if{html}{\out{</div>}}
 }
@@ -377,6 +445,11 @@ Assignment is validated automatically.}
 \item \href{#method-Agent-export_messages_history}{\code{Agent$export_messages_history()}}
 \item \href{#method-Agent-load_messages_history}{\code{Agent$load_messages_history()}}
 \item \href{#method-Agent-validate_response}{\code{Agent$validate_response()}}
+\item \href{#method-Agent-register_tools}{\code{Agent$register_tools()}}
+\item \href{#method-Agent-list_tools}{\code{Agent$list_tools()}}
+\item \href{#method-Agent-remove_tools}{\code{Agent$remove_tools()}}
+\item \href{#method-Agent-clear_tools}{\code{Agent$clear_tools()}}
+\item \href{#method-Agent-generate_and_register_tool}{\code{Agent$generate_and_register_tool()}}
 \item \href{#method-Agent-clone_agent}{\code{Agent$clone_agent()}}
 \item \href{#method-Agent-clone}{\code{Agent$clone()}}
 }
@@ -990,6 +1063,158 @@ print(validation)
 
 }
 \if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Agent-register_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-Agent-register_tools}{}}}
+\subsection{Method \code{register_tools()}}{
+Register one or more tools with the agent
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Agent$register_tools(tools)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{tools}}{A list of ellmer tool objects or a single tool object}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{\dontrun{
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+agent <- Agent$new(
+  name = "file_assistant",
+  instruction = "You are a file management assistant.",
+  llm_object = openai_4_1_mini
+)
+# Register predefined tools
+agent$register_tools(list(change_directory_tool(), list_files_tool()))
+}
+}
+\if{html}{\out{</div>}}
+
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Agent-list_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-Agent-list_tools}{}}}
+\subsection{Method \code{list_tools()}}{
+List all registered tools
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Agent$list_tools()}\if{html}{\out{</div>}}
+}
+
+\subsection{Returns}{
+Character vector of tool names
+}
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{\dontrun{
+agent$list_tools()
+}
+}
+\if{html}{\out{</div>}}
+
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Agent-remove_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-Agent-remove_tools}{}}}
+\subsection{Method \code{remove_tools()}}{
+Remove tools from the agent
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Agent$remove_tools(tool_names)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{tool_names}}{Character vector of tool names to remove}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{\dontrun{
+agent$remove_tools(c("change_directory", "list_files"))
+}
+}
+\if{html}{\out{</div>}}
+
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Agent-clear_tools"></a>}}
+\if{latex}{\out{\hypertarget{method-Agent-clear_tools}{}}}
+\subsection{Method \code{clear_tools()}}{
+Clear all registered tools
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Agent$clear_tools()}\if{html}{\out{</div>}}
+}
+
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{\dontrun{
+agent$clear_tools()
+}
+}
+\if{html}{\out{</div>}}
+
+}
+
+}
+\if{html}{\out{<hr>}}
+\if{html}{\out{<a id="method-Agent-generate_and_register_tool"></a>}}
+\if{latex}{\out{\hypertarget{method-Agent-generate_and_register_tool}{}}}
+\subsection{Method \code{generate_and_register_tool()}}{
+Generate and register a tool from a natural language description.
+This method uses the agent's LLM to create both the R function and the
+ellmer tool definition based on your description, then automatically registers it.
+\subsection{Usage}{
+\if{html}{\out{<div class="r">}}\preformatted{Agent$generate_and_register_tool(description)}\if{html}{\out{</div>}}
+}
+
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{description}}{Character string describing what the tool should do}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Examples}{
+\if{html}{\out{<div class="r example copy">}}
+\preformatted{\dontrun{
+openai_4_1_mini <- ellmer::chat(
+  name = "openai/gpt-4.1-mini",
+  api_key = Sys.getenv("OPENAI_API_KEY"),
+  echo = "none"
+)
+agent <- Agent$new(
+  name = "file_assistant",
+  instruction = "You are a helpful assistant.",
+  llm_object = openai_4_1_mini
+)
+# Generate and register a tool from description
+agent$generate_and_register_tool(
+  description = "Create a tool that saves text content to a file on disk"
+)
+# Now the tool is available to use
+agent$list_tools()
+}
+}
+\if{html}{\out{</div>}}
+
+}
+
+}
+\if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-Agent-clone_agent"></a>}}
 \if{latex}{\out{\hypertarget{method-Agent-clone_agent}{}}}
 \subsection{Method \code{clone_agent()}}{
@@ -1006,9 +1231,6 @@ Useful for creating multiple instances of the same agent type.
 If NULL, the cloned agent retains the original name.}
 }
 \if{html}{\out{</div>}}
-}
-\subsection{Returns}{
-A new Agent instance with the same configuration but a unique ID.
 }
 \subsection{Examples}{
 \if{html}{\out{<div class="r example copy">}}
