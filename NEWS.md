@@ -1,3 +1,11 @@
+
+#### Implementing the `Workflow` class which allows one to have full control over a `workflow` of agents
+#### Adding new methods:
+- `share_context_with()`
+
+
+#### Creating a quarto website
+
 # mini007 0.3.0
 #### Adding new methods to work with `tools`: 
 - `register_tools()`
